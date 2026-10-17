@@ -109,10 +109,6 @@ __device__ Surface shade(const Scene& scene, unsigned triangle, float s, float t
 constexpr float RESTIR_ROUGHNESS = 0.2f;
 // Dual ray footprint constant c / 100 * 4 PI of Eq. 5 with c = 0.02
 constexpr float RESTIR_FOOTPRINT = 0.0025132741228718345f;
-// Temporal confidence cap and its duplication-driven reduction (Sec. 5)
-constexpr float RESTIR_CAP = 20.0f;
-constexpr float RESTIR_CAP_MIN = 1.0f;
-constexpr float RESTIR_DUPLICATION_ALPHA = 0.1f;
 
 // How a path ends: next event estimation, emissive surface or environment
 constexpr unsigned END_NEE = 0u;
@@ -683,19 +679,13 @@ extern "C" __global__ void __raygen__temporal() {
     }
     if (q >= 0) {
         const Reservoir temporal = scene.previous[q];
-        // Optionally lower the confidence cap where the previous frame duplicated samples (Sec. 5), this biases the estimate
-        const float duplicated = scene.settings.decorrelation ? scene.duplication[q] : 0.0f;
-        const float cap = RESTIR_CAP + (RESTIR_CAP_MIN - RESTIR_CAP) * powf(duplicated, RESTIR_DUPLICATION_ALPHA);
-        const float c_t = fminf(temporal.c, cap);
         const Shift to_current = still ? Shift{temporal.f, 1.0f} : shift(scene, scene.camera, index, size, temporal);
         const Shift to_previous = still ? Shift{r.f, 1.0f} : shift(scene, scene.previousCamera, q, size, r);
-        const float p_c = rgb_to_greyscale(r.f);
-        const float p_t = rgb_to_greyscale(temporal.f);
         Selection sel = {};
         sel.random_state = stream(r.seed, STREAM_SELECT + 1u);
-        offerShifted(&sel, r, Shift{r.f, 1.0f}, r.c * p_c / (r.c * p_c + c_t * rgb_to_greyscale(to_previous.f)));
-        offerShifted(&sel, temporal, to_current, c_t * p_t / (c_t * p_t + r.c * rgb_to_greyscale(to_current.f)));
-        r = finalize(sel, r.c + c_t);
+        // Optionally lowering the confidence cap where the previous frame duplicated samples, which biases the estimate
+        r = temporalReuse(sel, r, temporal, to_current, to_previous,
+            scene.settings.decorrelation ? scene.duplication[q] : 0.0f);
     }
     scene.temporal[index] = r;
 }
@@ -736,16 +726,8 @@ extern "C" __global__ void __raygen__spatial() {
     for (unsigned t = 0u; t < scene.settings.neighbors; t++) {
         const int q = partner(scene, p, size, t);
         if (q >= 0) {
-            const Reservoir neighbor = scene.temporal[q];
-            const Shift to_here = scene.shifts[3 * q + t];
-            const Shift to_there = scene.shifts[3 * index + t];
-            const float share = (neighbor.c + c_pair) / c_sum;
-            const float p_n = rgb_to_greyscale(neighbor.f);
-            if (p_c > 0.0f) {
-                canonical_mis += share * c_pair * p_c / (c_pair * p_c + neighbor.c * rgb_to_greyscale(to_there.f));
-            }
-            offerShifted(&sel, neighbor, to_here,
-                share * neighbor.c * p_n / (neighbor.c * p_n + c_pair * rgb_to_greyscale(to_here.f)));
+            offerNeighbor(&sel, &canonical_mis, scene.temporal[q], scene.shifts[3 * q + t], scene.shifts[3 * index + t],
+                p_c, c_pair, c_sum);
         }
     }
     offerShifted(&sel, r, Shift{r.f, 1.0f}, canonical_mis);

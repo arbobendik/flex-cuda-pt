@@ -778,3 +778,49 @@ __device__ Reservoir withEnd(Reservoir r_2, uint end_type_0, uint end_0, float3 
     return candidate_2;
 }
 
+static __device__ Shift Shift_x24init_0(float3  f_1, float jac_0)
+{
+    Shift _S164;
+    (&_S164)->f = f_1;
+    (&_S164)->jac = jac_0;
+    return _S164;
+}
+
+__device__ Reservoir temporalReuse(Selection sel_3, Reservoir r_3, Reservoir temporal_0, Shift to_current_0, Shift to_previous_0, float duplicated_0)
+{
+    Selection _S165 = sel_3;
+    float cap_0 = 20.0f + -19.0f * (F32_pow((duplicated_0), (0.10000000149011612f)));
+    float _S166 = (F32_min((temporal_0.c), (cap_0)));
+    float p_c_0 = rgb_to_greyscale(r_3.f);
+    float p_t_0 = rgb_to_greyscale(temporal_0.f);
+    Shift _S167 = Shift_x24init_0(r_3.f, 1.0f);
+    float _S168 = r_3.c * p_c_0;
+    float _S169 = rgb_to_greyscale(to_previous_0.f);
+    offerShifted(&_S165, r_3, _S167, _S168 / (_S168 + _S166 * _S169));
+    float _S170 = _S166 * p_t_0;
+    float _S171 = rgb_to_greyscale(to_current_0.f);
+    offerShifted(&_S165, temporal_0, to_current_0, _S170 / (_S170 + r_3.c * _S171));
+    Reservoir _S172 = finalize(_S165, r_3.c + _S166);
+    return _S172;
+}
+
+__device__ void offerNeighbor(Selection * sel_4, float * canonical_mis_0, Reservoir neighbor_0, Shift to_here_0, Shift to_there_0, float p_c_1, float c_pair_0, float c_sum_0)
+{
+    float share_0 = (neighbor_0.c + c_pair_0) / c_sum_0;
+    float p_n_0 = rgb_to_greyscale(neighbor_0.f);
+    bool _S173 = p_c_1 > 0.0f;
+    if(_S173)
+    {
+        float _S174 = share_0 * c_pair_0 * p_c_1;
+        float _S175 = c_pair_0 * p_c_1;
+        float _S176 = rgb_to_greyscale(to_there_0.f);
+        float _S177 = *canonical_mis_0 + _S174 / (_S175 + neighbor_0.c * _S176);
+        *canonical_mis_0 = _S177;
+    }
+    float _S178 = share_0 * neighbor_0.c * p_n_0;
+    float _S179 = neighbor_0.c * p_n_0;
+    float _S180 = rgb_to_greyscale(to_here_0.f);
+    offerShifted(sel_4, neighbor_0, to_here_0, _S178 / (_S179 + c_pair_0 * _S180));
+    return;
+}
+
