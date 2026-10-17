@@ -7,8 +7,6 @@ constexpr int STACK = 64;
 constexpr float PI = 3.14159265f;
 constexpr float INV_PI = 0.3183098861837907f;
 constexpr float BIAS = 0.0000152587890625f;
-// Columns
-struct Matrix { float3 x, y, z; };
 __device__ float3 operator+(float3 a, float3 b) { return make_float3(a.x + b.x, a.y + b.y, a.z + b.z); }
 __device__ float3 operator-(float3 a, float3 b) { return make_float3(a.x - b.x, a.y - b.y, a.z - b.z); }
 __device__ float3 operator-(float3 a) { return make_float3(-a.x, -a.y, -a.z); }
@@ -41,31 +39,6 @@ __device__ bool operator==(float3 a, float3 b) { return a.x == b.x && a.y == b.y
 // Repeats into [0, 1)
 __device__ float wrap(float coordinate) { return fminf(coordinate - floorf(coordinate), 0x1.fffffep-1f); }
 __device__ float random(unsigned& state) { return ((state = hash(state)) >> 8) * 0x1p-24f; }
-
-// Build TBN matrix for tangent-space normal mapping. Uses triangle edges and UV deltas to compute
-// tangent (U direction) and bitangent (V direction), with handedness fix.
-__device__ Matrix normalMapTBN(float3 p0, float3 p1, float3 p2, float2 uv0, float2 uv1, float2 uv2, float3 n) {
-    const float3 e1 = p1 - p0;
-    const float3 e2 = p2 - p0;
-    const float2 duv1 = uv1 - uv0;
-    const float2 duv2 = uv2 - uv0;
-    // Compute inverse determinant for UV to world space transformation.
-    const float det = duv1.x * duv2.y - duv1.y * duv2.x;
-    const float inv_det = 1.0f / det;
-    float3 t = (e1 * duv2.y - e2 * duv1.y) * inv_det;
-    const float3 b_geom = (e2 * duv1.x - e1 * duv2.x) * inv_det;
-
-    // Gram-Schmidt: make tangent perpendicular to interpolated normal.
-    t = normalize(t - n * dot(n, t));
-    // Handedness: bitangent along the geometric b, mirrored with the UVs, as Blender's tangent space.
-    const float3 b = cross(n, t) * sign(dot(cross(n, t), b_geom));
-
-    return Matrix{t, b, n};
-}
-
-__device__ float3 tangentToWorldNormalMap(float3 v, Matrix tbn) {
-    return tbn.x * v.x + tbn.y * v.y + tbn.z * v.z;
-}
 
 constexpr unsigned LOBE_DIFFUSE = 0u;
 constexpr unsigned LOBE_REFRACT = 1u;

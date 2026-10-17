@@ -657,3 +657,46 @@ __device__ bool neeDecision(Surface material_7, float n_dot_v_2, float eta_i_8, 
     return _S145;
 }
 
+struct Matrix
+{
+    float3  x;
+    float3  y;
+    float3  z;
+};
+
+static __device__ Matrix Matrix_x24init_0(float3  x_5, float3  y_1, float3  z_0)
+{
+    Matrix _S146;
+    (&_S146)->x = x_5;
+    (&_S146)->y = y_1;
+    (&_S146)->z = z_0;
+    return _S146;
+}
+
+__device__ Matrix normalMapTBN(float3  p0_0, float3  p1_0, float3  p2_0, float2  uv0_0, float2  uv1_0, float2  uv2_0, float3  n_7)
+{
+    float3  e1_0 = p1_0 - p0_0;
+    float3  e2_0 = p2_0 - p0_0;
+    float2  duv1_0 = uv1_0 - uv0_0;
+    float2  duv2_0 = uv2_0 - uv0_0;
+    float _S147 = duv1_0.x;
+    float _S148 = duv2_0.y;
+    float _S149 = duv1_0.y;
+    float _S150 = duv2_0.x;
+    float det_0 = _S147 * _S148 - _S149 * _S150;
+    float inv_det_0 = 1.0f / det_0;
+    float3  t_1 = (e1_0 * make_float3 (_S148) - e2_0 * make_float3 (_S149)) * make_float3 (inv_det_0);
+    float3  b_geom_0 = (e2_0 * make_float3 (_S147) - e1_0 * make_float3 (_S150)) * make_float3 (inv_det_0);
+    float3  _S151 = t_1 - n_7 * make_float3 (dot_0(n_7, t_1));
+    float3  t_2 = ((((_S151)) * make_float3(rnorm3df(((_S151)).x, ((_S151)).y, ((_S151)).z))));
+    float3  _S152 = cross_0(n_7, t_2);
+    float _S153 = sign_0(dot_0(_S152, b_geom_0));
+    float3  b_2 = _S152 * make_float3 (_S153);
+    return Matrix_x24init_0(t_2, b_2, n_7);
+}
+
+__device__ float3  tangentToWorldNormalMap(float3  v_7, Matrix tbn_0)
+{
+    return tbn_0.x * make_float3 (v_7.x) + tbn_0.y * make_float3 (v_7.y) + tbn_0.z * make_float3 (v_7.z);
+}
+
