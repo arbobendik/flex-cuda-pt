@@ -11,7 +11,7 @@ build/flex.zip: src/__init__.py src/blender_manifest.toml build/renderer
 build/renderer: src/main.cpp src/loader.h src/shaders/renderer.h build/shaders.h
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $< -o $@ $(LDLIBS)
 
-build/shaders.h: src/shaders/renderer.cu src/shaders/renderer.h src/shaders/flexkernels/bsdf.cuh \
+build/shaders.h: src/shaders/renderer.cu src/shaders/renderer.h src/shaders/flexkernels/pathtracer.cuh \
 	src/shaders/flexkernels/slang-cuda-prelude.h $(OPTIX_PATH)/include/optix.h
 	mkdir -p build
 	$(NVCC) -std=c++20 -ptx -arch=compute_75 --use_fast_math -I$(OPTIX_PATH)/include $< -o build/shaders.ptx

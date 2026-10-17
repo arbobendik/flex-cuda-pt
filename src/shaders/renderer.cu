@@ -1,7 +1,7 @@
 #include "renderer.h"
 #include <optix.h>
 #include <cuda_runtime.h>
-#include "flexkernels/bsdf.cuh"
+#include "flexkernels/pathtracer.cuh"
 
 constexpr int STACK = 64;
 constexpr float PI = 3.14159265f;
