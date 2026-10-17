@@ -700,3 +700,81 @@ __device__ float3  tangentToWorldNormalMap(float3  v_7, Matrix tbn_0)
     return tbn_0.x * make_float3 (v_7.x) + tbn_0.y * make_float3 (v_7.y) + tbn_0.z * make_float3 (v_7.z);
 }
 
+struct Selection
+{
+    Reservoir r;
+    float w_sum;
+    float3  color;
+    uint random_state;
+};
+
+__device__ void offer(Selection * sel_0, Reservoir candidate_0, float3  weight_0)
+{
+    float w_0 = rgb_to_greyscale(weight_0);
+    bool _S154 = w_0 > 0.0f;
+    bool _S155;
+    if(_S154)
+    {
+        _S155 = w_0 < 3.00000000549775576e+38f;
+    }
+    else
+    {
+        _S155 = false;
+    }
+    bool _S156 = !_S155;
+    if(_S156)
+    {
+        return;
+    }
+    float _S157 = sel_0->w_sum + w_0;
+    sel_0->w_sum = _S157;
+    float3  _S158 = sel_0->color + weight_0;
+    sel_0->color = _S158;
+    Random random_value_0 = pcg(sel_0->random_state);
+    sel_0->random_state = random_value_0.state;
+    bool _S159 = (random_value_0.value * sel_0->w_sum) <= w_0;
+    if(_S159)
+    {
+        sel_0->r = candidate_0;
+    }
+    return;
+}
+
+__device__ void offerShifted(Selection * sel_1, Reservoir r_0, Shift shifted_0, float mis_0)
+{
+    Reservoir candidate_1 = r_0;
+    float3  _S160 = shifted_0.f / make_float3 (shifted_0.jac);
+    (&candidate_1)->f = _S160;
+    float _S161 = r_0.jac * shifted_0.jac;
+    (&candidate_1)->jac = _S161;
+    offer(sel_1, candidate_1, make_float3 (mis_0) * shifted_0.f * make_float3 (r_0.w));
+    return;
+}
+
+__device__ Reservoir finalize(Selection sel_2, float c_0)
+{
+    Reservoir r_1 = sel_2.r;
+    float p_hat_0 = rgb_to_greyscale((&r_1)->f);
+    float _S162;
+    if(p_hat_0 > 0.0f)
+    {
+        _S162 = sel_2.w_sum / p_hat_0;
+    }
+    else
+    {
+        _S162 = 0.0f;
+    }
+    (&r_1)->w = _S162;
+    (&r_1)->c = c_0;
+    return r_1;
+}
+
+__device__ Reservoir withEnd(Reservoir r_2, uint end_type_0, uint end_0, float3  f_0)
+{
+    Reservoir candidate_2 = r_2;
+    uint _S163 = ((r_2.path) | (end_0 << 0U)) | (end_type_0 << 12U);
+    (&candidate_2)->path = _S163;
+    (&candidate_2)->f = f_0;
+    return candidate_2;
+}
+
