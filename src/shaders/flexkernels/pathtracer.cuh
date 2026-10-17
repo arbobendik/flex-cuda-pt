@@ -632,3 +632,28 @@ __device__ float3  BSDF(float3  in_dir_3, float3  out_dir_1, float3  n_6, float3
     return refraction_0.throughput * make_float3 (refraction_0.pdf);
 }
 
+__device__ float3  beerLambert(float distance_0, Surface material_6)
+{
+    float depth_0 = distance_0 * material_6.density;
+    return make_float3 ((F32_exp((depth_0 * (material_6.absorption.x - 1.0f)))), (F32_exp((depth_0 * (material_6.absorption.y - 1.0f)))), (F32_exp((depth_0 * (material_6.absorption.z - 1.0f)))));
+}
+
+__device__ bool neeDecision(Surface material_7, float n_dot_v_2, float eta_i_8, float eta_o_8)
+{
+    float3  _S142 = tinted(material_7, (F32_abs((n_dot_v_2))), eta_i_8, eta_o_8);
+    float3  F_n_0 = mix_0(_S142, material_7.albedo, material_7.metallic);
+    float F_n_greyscale_0 = rgb_to_greyscale(F_n_0);
+    float _S143 = (F32_max(((1.0f - F_n_greyscale_0) * (1.0f - material_7.metallic) * (1.0f - material_7.transparency)), (0.0f)));
+    bool _S144 = _S143 > 0.03999999910593033f;
+    bool _S145;
+    if(_S144)
+    {
+        _S145 = true;
+    }
+    else
+    {
+        _S145 = (material_7.roughness) > 0.20000000298023224f;
+    }
+    return _S145;
+}
+

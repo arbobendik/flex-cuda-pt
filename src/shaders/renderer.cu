@@ -128,22 +128,6 @@ __device__ Surface shade(const Scene& scene, unsigned triangle, float s, float t
         uv[0].x + (uv[1].x - uv[0].x) * s + (uv[2].x - uv[0].x) * t,
         uv[0].y + (uv[1].y - uv[0].y) * s + (uv[2].y - uv[0].y) * t);
 }
-// Beer's law for absorption over the distance through a medium: T = exp(-sigma_a * d), sigma_a = density * (1 - color)
-// as Cycles' Volume Absorption
-__device__ float3 beerLambert(float distance, const Surface& material) {
-    const float depth = distance * material.density;
-    return make_float3(expf(depth * (material.absorption.x - 1)), expf(depth * (material.absorption.y - 1)),
-        expf(depth * (material.absorption.z - 1)));
-}
-__device__ bool neeDecision(const Surface& material, float n_dot_v, float eta_i, float eta_o) {
-    // Calculate fresnel term
-    const float3 F_n = mix(tinted(material, fabsf(n_dot_v), eta_i, eta_o), material.albedo,
-        material.metallic);
-    const float F_n_greyscale = rgb_to_greyscale(F_n);
-    const float diffuse_factor_estimate = fmaxf((1.0f - F_n_greyscale) * (1.0f - material.metallic)
-        * (1.0f - material.transparency), 0.0f);
-    return diffuse_factor_estimate > 0.04f || material.roughness > 0.2f;
-}
 
 // ReSTIR PT Enhanced (Lin, Kettunen and Wyman 2026) on top of the path tracing of walk below.
 // Paths live in primary sample space, vertex b draws its random numbers from stream(seed, b).
